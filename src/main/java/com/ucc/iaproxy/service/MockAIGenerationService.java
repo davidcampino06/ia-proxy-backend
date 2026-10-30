@@ -2,6 +2,7 @@ package com.ucc.iaproxy.service;
 
 import com.ucc.iaproxy.model.GenerationRequest;
 import com.ucc.iaproxy.model.GenerationResponse;
+import com.ucc.iaproxy.model.ProxyStep;
 
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -11,6 +12,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * Simulates an AI service: waits 1200 ms and returns a random predefined text.
  */
 public class MockAIGenerationService implements AIGenerationService {
+
+    public static final String LAYER = "MockAIGenerationService";
 
     private static final long SIMULATED_LATENCY_MS = 1200;
 
@@ -35,12 +38,16 @@ public class MockAIGenerationService implements AIGenerationService {
 
     @Override
     public GenerationResponse generate(GenerationRequest request) {
+        long start = System.nanoTime();
         try {
             Thread.sleep(SIMULATED_LATENCY_MS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
         String text = RESPONSES.get(ThreadLocalRandom.current().nextInt(RESPONSES.size()));
-        return new GenerationResponse(text);
+        GenerationResponse response = new GenerationResponse(text);
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+        response.addStep(new ProxyStep(LAYER, "Generated a reply (simulated model)", elapsedMs));
+        return response;
     }
 }

@@ -60,6 +60,32 @@ public class UserAccount {
         return history;
     }
 
+    /** Demo helper: sets the monthly token counter directly. */
+    public synchronized void setTokensUsed(long tokensUsed) {
+        this.tokensUsed = Math.max(0, tokensUsed);
+    }
+
+    /** Demo helper: adds tokens to the month and to today without counting a request. */
+    public synchronized void addTokensWithoutRequest(long tokens) {
+        this.tokensUsed += tokens;
+        history.computeIfAbsent(LocalDate.now(), DailyUsage::new).addTokensOnly(tokens);
+    }
+
+    /** Demo helper: replaces the usage recorded for one day. */
+    public synchronized void putDailyUsage(LocalDate date, long tokens, int requests) {
+        DailyUsage usage = new DailyUsage(date);
+        usage.set(tokens, requests);
+        history.put(date, usage);
+    }
+
+    /** Demo helper: back to a brand new FREE account. */
+    public synchronized void resetAll() {
+        this.plan = Plan.FREE;
+        this.tokensUsed = 0;
+        this.requestsThisMinute = 0;
+        this.history.clear();
+    }
+
     /**
      * Usage for a single day.
      */
@@ -75,6 +101,15 @@ public class UserAccount {
         public synchronized void add(long tokens) {
             this.tokens += tokens;
             this.requests++;
+        }
+
+        synchronized void addTokensOnly(long tokens) {
+            this.tokens += tokens;
+        }
+
+        synchronized void set(long tokens, int requests) {
+            this.tokens = tokens;
+            this.requests = requests;
         }
 
         public LocalDate getDate() {

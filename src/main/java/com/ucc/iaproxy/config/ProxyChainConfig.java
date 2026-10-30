@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Builds the proxy chain:
  *
- *   Cliente -> RateLimitProxyService -> QuotaProxyService -> MockAIGenerationService
+ *   Client -> RateLimitProxyService -> QuotaProxyService -> MockAIGenerationService
  *
  * The controller only receives an AIGenerationService and does not know there are proxies behind it.
  */

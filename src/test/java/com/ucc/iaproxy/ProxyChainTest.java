@@ -73,6 +73,38 @@ class ProxyChainTest {
     }
 
     @Test
+    void responseListsEveryLayerInTravelOrder() {
+        AIGenerationService realChain = new RateLimitProxyService(
+                new QuotaProxyService(new com.ucc.iaproxy.service.MockAIGenerationService(), store), store);
+        GenerationResponse r = realChain.generate(new GenerationRequest("u6", "hello"));
+        assertEquals(3, r.getSteps().size());
+        assertEquals(RateLimitProxyService.LAYER, r.getSteps().get(0).layer());
+        assertEquals(QuotaProxyService.LAYER, r.getSteps().get(1).layer());
+        assertEquals(com.ucc.iaproxy.service.MockAIGenerationService.LAYER, r.getSteps().get(2).layer());
+        assertTrue(r.getSteps().get(2).durationMs() >= 1200);
+    }
+
+    @Test
+    void demoExhaustQuotaMakesNextPromptFailWith402() {
+        com.ucc.iaproxy.service.DemoService demo = new com.ucc.iaproxy.service.DemoService(store);
+        demo.exhaustQuota("u7");
+        assertEquals(50_000, store.get("u7").getTokensUsed());
+        assertThrows(QuotaExceededException.class,
+                () -> chain.generate(new GenerationRequest("u7", "hello")));
+        demo.reset("u7");
+        assertEquals(0, store.get("u7").getTokensUsed());
+        assertEquals(Plan.FREE, store.get("u7").getPlan());
+    }
+
+    @Test
+    void demoSeedHistoryStaysWithinPlan() {
+        com.ucc.iaproxy.service.DemoService demo = new com.ucc.iaproxy.service.DemoService(store);
+        demo.seedHistory("u8");
+        assertTrue(store.get("u8").getTokensUsed() <= 30_000);
+        assertEquals(6, store.get("u8").getHistory().size());
+    }
+
+    @Test
     void minuteResetAllowsSendingAgain() {
         for (int i = 0; i < 10; i++) {
             chain.generate(new GenerationRequest("u5", "hello"));

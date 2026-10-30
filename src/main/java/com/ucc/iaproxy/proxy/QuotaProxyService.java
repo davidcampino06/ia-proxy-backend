@@ -4,6 +4,7 @@ import com.ucc.iaproxy.exception.QuotaExceededException;
 import com.ucc.iaproxy.model.GenerationRequest;
 import com.ucc.iaproxy.model.GenerationResponse;
 import com.ucc.iaproxy.model.Plan;
+import com.ucc.iaproxy.model.ProxyStep;
 import com.ucc.iaproxy.model.UserAccount;
 import com.ucc.iaproxy.service.AIGenerationService;
 import com.ucc.iaproxy.service.TokenEstimator;
@@ -19,6 +20,8 @@ import com.ucc.iaproxy.store.UserStore;
  */
 public class QuotaProxyService implements AIGenerationService {
 
+    public static final String LAYER = "QuotaProxy";
+
     private final AIGenerationService realService;
     private final UserStore userStore;
 
@@ -29,6 +32,7 @@ public class QuotaProxyService implements AIGenerationService {
 
     @Override
     public GenerationResponse generate(GenerationRequest request) {
+        long start = System.nanoTime();
         UserAccount account = userStore.get(request.getUserId());
         Plan plan = account.getPlan();
         long promptTokens = TokenEstimator.estimate(request.getPrompt());
@@ -38,11 +42,13 @@ public class QuotaProxyService implements AIGenerationService {
                 && account.getTokensUsed() + promptTokens > plan.getMonthlyTokens()) {
             throw new QuotaExceededException(account.getTokensUsed(), plan.getMonthlyTokens());
         }
+        long checkTimeMs = (System.nanoTime() - start) / 1_000_000;
 
         // 2. Delegate to the real service
         GenerationResponse response = realService.generate(request);
 
         // 3. Deduct the consumed tokens and record the usage
+        long deductStart = System.nanoTime();
         long completionTokens = TokenEstimator.estimate(response.getText());
         long total = promptTokens + completionTokens;
         account.addTokens(total);
@@ -50,9 +56,16 @@ public class QuotaProxyService implements AIGenerationService {
         response.setPromptTokens(promptTokens);
         response.setCompletionTokens(completionTokens);
         response.setTotalTokens(total);
-        response.setRemainingTokens(plan.isUnlimitedTokens()
+        Long remaining = plan.isUnlimitedTokens()
                 ? null
-                : Math.max(0, plan.getMonthlyTokens() - account.getTokensUsed()));
+                : Math.max(0, plan.getMonthlyTokens() - account.getTokensUsed());
+        response.setRemainingTokens(remaining);
+
+        String detail = remaining == null
+                ? "Charged " + total + " tokens (" + plan + " has no monthly limit)"
+                : "Charged " + total + " tokens, " + remaining + " left this month";
+        long ownTimeMs = checkTimeMs + (System.nanoTime() - deductStart) / 1_000_000;
+        response.prependStep(new ProxyStep(LAYER, detail, ownTimeMs));
         return response;
     }
 }

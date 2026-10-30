@@ -44,6 +44,21 @@ Users are identified by the `X-User-Id` header (defaults to `demo`).
 | GET | `/api/quota/status` | Used tokens, remaining tokens, reset date, plan |
 | GET | `/api/quota/history` | Daily usage for the last 7 days |
 | POST | `/api/quota/upgrade` | Upgrades the plan (FREE → PRO). Optional body `{"plan":"ENTERPRISE"}` |
+| GET | `/api/plans` | All plans with their limits and price |
+
+Every `/api/ai/generate` response includes `steps`: the layers the request went through
+(`RateLimitProxy`, `QuotaProxy`, `MockAIGenerationService`) with what each one did and how long it took.
+
+### Demo endpoints
+
+Shortcuts for the presentation. They change the account state but never bypass the proxies.
+Turn them off with `DEMO_ENABLED=false`.
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/demo/exhaust-quota` | Uses up the monthly quota, so the next prompt gets 402 |
+| POST | `/api/demo/seed-history` | Fills the last 6 days with sample usage |
+| POST | `/api/demo/reset` | Back to a new FREE account with no usage |
 
 ## Scheduled tasks (`scheduler/ResetScheduler`)
 
@@ -61,7 +76,7 @@ curl -X POST localhost:8080/api/ai/generate -H "Content-Type: application/json" 
 ## Deploy to Railway
 
 1. New Project → Deploy from GitHub repo → `ia-proxy-backend` (uses the `Dockerfile`).
-2. Variables: `ALLOWED_ORIGINS=https://<your-frontend>.vercel.app`
+2. Variables: `ALLOWED_ORIGINS=https://<your-frontend>.vercel.app` (optional: `DEMO_ENABLED`, `APP_TIMEZONE`)
 3. Settings → Networking → Generate Domain.
 
 > Data is stored in memory, so it is cleared when the server restarts.
