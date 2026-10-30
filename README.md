@@ -36,6 +36,8 @@ Token estimate: 1 token ≈ 4 characters (prompt + completion).
 
 ## Endpoints
 
+The frontend is deployed on Vercel from [ia-proxy-frontend](https://github.com/davidcampino06/ia-proxy-frontend).
+
 Users are identified by the `X-User-Id` header (defaults to `demo`).
 
 | Method | Path | Description |
@@ -73,10 +75,18 @@ curl -X POST localhost:8080/api/ai/generate -H "Content-Type: application/json" 
      -H "X-User-Id: david" -d '{"prompt":"Hello AI"}'
 ```
 
-## Deploy to Railway
+## Deployment
 
-1. New Project → Deploy from GitHub repo → `ia-proxy-backend` (uses the `Dockerfile`).
-2. Variables: `ALLOWED_ORIGINS=https://<your-frontend>.vercel.app` (optional: `DEMO_ENABLED`, `APP_TIMEZONE`)
-3. Settings → Networking → Generate Domain.
+Live API: https://ia-proxy-backend.onrender.com (health check: `/api/health`)
+
+Deployed on **Render** (free web service, Docker runtime):
+
+1. New → Web Service → connect the `ia-proxy-backend` repository.
+2. Language: Docker (detected from the `Dockerfile`). Instance type: Free.
+3. Optional environment variables: `ALLOWED_ORIGINS`, `DEMO_ENABLED`, `APP_TIMEZONE`.
+4. Health check path: `/api/health`.
+
+The free instance sleeps after 15 minutes without traffic and takes about a minute to wake up,
+so open `/api/health` before a demo.
 
 > Data is stored in memory, so it is cleared when the server restarts.
